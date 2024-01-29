@@ -34,12 +34,17 @@ private:
 	/// <summary>
 	/// DDSテクスチャ年てファイル書き出し
 	/// </summary>
-	void SaveDDSTextureToFile();
+	void SaveDDSTextureToFile(int numOptions, char* options[]);
 public:
+	/// <summary>
+	/// 使用方法を出力(表示)する
+	/// </summary>
+	static void OutputUsage();
 	/// <summary>
 	/// Texture WIC -> DDS 変換
 	/// </summary>
 	/// <param name="filepath"></param>
-	void ConvertTextureWICToDDS(const std::string& filepath);
+	void ConvertTextureWICToDDS(const std::string& filepath
+		, int numOptions = 0, char* options[] = nullptr);
 };
 

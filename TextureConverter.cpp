@@ -64,11 +64,39 @@ void TextureConverter::SeparateFilePath(const std::wstring& filepath)
 	filename_ = exceptExt;
 }
 
-void TextureConverter::SaveDDSTextureToFile()
+void TextureConverter::SaveDDSTextureToFile(int numOptions, char* options[])
 {
-	metadata_.format = MakeSRGB(metadata_.format);
-
 	HRESULT hr;
+	size_t mipLevel = 0;
+	for (int i = 0; i < numOptions; i++)
+	{
+		if (std::string(options[i]) == "-ml") {
+			mipLevel = std::stoi(options[i + 1]);
+			break;
+		}
+	}
+	//	ミニマップ生成
+	ScratchImage mipChain{};
+	hr = GenerateMipMaps(
+		scratchImg_.GetImages(), scratchImg_.GetImageCount(), scratchImg_.GetMetadata(),
+		TEX_FILTER_DEFAULT, mipLevel, mipChain);
+
+	if (SUCCEEDED(hr)) {
+		scratchImg_ = std::move(mipChain);
+		metadata_ = scratchImg_.GetMetadata();
+	}
+
+	ScratchImage converted;
+	hr = Compress(scratchImg_.GetImages(), scratchImg_.GetImageCount(), metadata_,
+		DXGI_FORMAT_BC7_UNORM_SRGB, TEX_COMPRESS_BC7_QUICK | TEX_COMPRESS_SRGB_OUT |
+		TEX_COMPRESS_PARALLEL, 1.0f, converted);
+
+	if (SUCCEEDED(hr)) {
+		scratchImg_ = std::move(converted);
+		metadata_ = scratchImg_.GetMetadata();
+	}
+
+	metadata_.format = MakeSRGB(metadata_.format);
 
 	//	出力ファイル名設定
 	std::wstring filepath = dirpath_ + filename_ + L".dds";
@@ -78,9 +106,20 @@ void TextureConverter::SaveDDSTextureToFile()
 	assert(SUCCEEDED(hr));
 }
 
-void TextureConverter::ConvertTextureWICToDDS(const std::string& filepath)
+void TextureConverter::OutputUsage()
+{
+	printf("画像ファイルをWIC形式からDDS形式に変換します。\n");
+	printf("\n");
+	printf("TextureConverter [ドライブ:][パス][ファイル名] [-ml level]\n");
+	printf("\n");
+	printf("[ドライブ:][パス][ファイル名]: 変換したいWIC形式の画像ファイルを指定します。\n");
+	printf("\n");
+	printf("[-ml level]: ミップレベルを指定します。0を指定すると1x1までのフルミップマップチェーンを生成します。\n");
+}
+
+void TextureConverter::ConvertTextureWICToDDS(const std::string& filepath, int numOptions, char* options[])
 {
 	LoadWICTextureFromFile(filepath);
 
-	SaveDDSTextureToFile();
+	SaveDDSTextureToFile(numOptions, options);
 }
